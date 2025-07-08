@@ -548,7 +548,13 @@ const App: React.FC = () => {
       }
       
       setTasksWithHistory(prevTasks =>
-          prevTasks.map(t => (t.id === taskId ? { ...t, extendedDetails: details } : t))
+          prevTasks.map(t => (t.id === taskId ? { ...t, extendedDetails:
+          }
+          )
+          )
+      )
+  }
+} details } : t))
       );
   };
 
