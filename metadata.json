@@ -1,0 +1,6 @@
+{
+  "name": "AI Project Planner",
+  "description": "A simple application to generate project plans using AI. Input your goal and target date, and the AI will help break it down into manageable tasks and provide details for each.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
