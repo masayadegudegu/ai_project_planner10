@@ -232,3 +232,44 @@ export interface GanttItem {
   type: 'task' | 'substep' | 'actionitem';
   parentId: string | null; // ID of the parent task or sub-step
 }
+
+// プロジェクトコラボレーション関連の型定義
+export interface ProjectMember {
+  id: string;
+  projectId: string;
+  userId: string;
+  role: 'owner' | 'editor' | 'viewer';
+  invitedBy?: string;
+  invitedAt: string;
+  joinedAt?: string;
+  status: 'pending' | 'accepted' | 'declined';
+  userEmail?: string;
+  userName?: string;
+}
+
+export interface ProjectInvitation {
+  id: string;
+  projectId: string;
+  email: string;
+  role: 'editor' | 'viewer';
+  invitedBy: string;
+  token: string;
+  expiresAt: string;
+  createdAt: string;
+  usedAt?: string;
+}
+
+export interface ProjectWithMetadata {
+  id: string;
+  title: string;
+  goal: string;
+  targetDate: string;
+  tasks: ProjectTask[];
+  ganttData?: GanttItem[] | null;
+  createdAt: string;
+  updatedAt: string;
+  lastModifiedBy?: string;
+  version: number;
+  userRole: 'owner' | 'editor' | 'viewer';
+  members?: ProjectMember[];
+}

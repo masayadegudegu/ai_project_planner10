@@ -1,10 +1,11 @@
 import React, { useRef, useEffect, useState, createRef, useCallback } from 'react';
-import { ProjectTask, EditableExtendedTaskDetails, ProjectHealthReport, SlideDeck, TaskStatus, GanttItem } from '../types';
+import { ProjectTask, EditableExtendedTaskDetails, ProjectHealthReport, SlideDeck, TaskStatus, GanttItem, ProjectMember } from '../types';
 import TaskCard from './TaskCard';
-import { TargetIcon, CalendarIcon, DownloadIcon, PlusCircleIcon, UploadIcon, RefreshIcon, UndoIcon, RedoIcon, ClipboardDocumentListIcon, SparklesIcon, PresentationChartBarIcon, PlusIcon as NewProjectIcon, GanttChartIcon, FolderIcon, KeyIcon } from './icons';
+import { TargetIcon, CalendarIcon, DownloadIcon, PlusCircleIcon, UploadIcon, RefreshIcon, UndoIcon, RedoIcon, ClipboardDocumentListIcon, SparklesIcon, PresentationChartBarIcon, PlusIcon as NewProjectIcon, GanttChartIcon, FolderIcon, KeyIcon, UserIcon } from './icons';
 import FlowConnector from './FlowConnector';
 import ActionItemOverviewModal from './ActionItemOverviewModal';
 import ProjectHealthReportModal from './ProjectHealthReportModal';
+import ProjectInviteModal from './ProjectInviteModal';
 import { generateProjectHealthReport, generateProjectReportDeck, generateGanttData } from '../services/geminiService';
 import { ProjectService } from '../services/projectService';
 import LoadingSpinner from './LoadingSpinner';
@@ -41,6 +42,9 @@ interface ProjectFlowDisplayProps {
   onLogout: () => void;
   currentProjectId: string | null;
   onSaveProject: () => Promise<void>;
+  projectMembers?: ProjectMember[];
+  userRole?: 'owner' | 'editor' | 'viewer';
+  onMembersUpdate?: () => void;
 }
 
 interface ConnectorInfo {
@@ -58,6 +62,9 @@ const ProjectFlowDisplay: React.FC<ProjectFlowDisplayProps> = ({
   generateUniqueId, onUpdateTaskConnections,
   ganttData, setGanttData, onCustomReportGenerated, onClearApiKey,
   onOpenProjectList, onLogout, currentProjectId, onSaveProject
+  projectMembers = [],
+  userRole = 'viewer',
+  onMembersUpdate = () => {},
 }) => {
   const singleTaskFileInputRef = useRef<HTMLInputElement>(null);
   const flowContainerRef = useRef<HTMLDivElement>(null);
@@ -84,6 +91,7 @@ const ProjectFlowDisplay: React.FC<ProjectFlowDisplayProps> = ({
 
   const [isConfirmNewProjectOpen, setIsConfirmNewProjectOpen] = useState(false);
   const [isDocumentCenterOpen, setIsDocumentCenterOpen] = useState(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
 
   const [connectingState, setConnectingState] = useState<{ fromId: string; fromPos: { x: number; y: number } } | null>(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
@@ -284,6 +292,7 @@ const ProjectFlowDisplay: React.FC<ProjectFlowDisplayProps> = ({
       try {
         const project = await ProjectService.createProject(title, projectGoal, targetDate, tasks, ganttData);
         alert('プロジェクトが保存されました！');
+        onMembersUpdate(); // プロジェクト作成後にメンバー情報を更新
         // currentProjectIdを更新する必要があるが、propsで渡されているので親コンポーネントで管理
       } catch (error) {
         alert('プロジェクトの保存に失敗しました: ' + (error instanceof Error ? error.message : '不明なエラー'));
@@ -368,6 +377,9 @@ const ProjectFlowDisplay: React.FC<ProjectFlowDisplayProps> = ({
 
   const formattedDate = targetDate ? new Date(targetDate + 'T00:00:00Z').toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' }) : '未設定';
 
+  const canEdit = userRole === 'owner' || userRole === 'editor';
+  const canManageMembers = userRole === 'owner' || userRole === 'editor';
+
   if (isProjectReportEditorOpen && projectReportDeck) {
      return <SlideEditorView 
         tasks={tasks}
@@ -432,7 +444,9 @@ const ProjectFlowDisplay: React.FC<ProjectFlowDisplayProps> = ({
             </button>
             <button
               onClick={onAddTask}
+              disabled={!canEdit}
               className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700"
+              title={!canEdit ? "編集権限が必要です" : ""}
             ><PlusCircleIcon className="w-5 h-5 mr-2" />タスク追加</button>
             <button
               onClick={onExportProject}
@@ -440,7 +454,9 @@ const ProjectFlowDisplay: React.FC<ProjectFlowDisplayProps> = ({
             ><DownloadIcon className="w-5 h-5 mr-2" />JSONエクスポート</button>
             <button
               onClick={onAutoLayout}
+              disabled={!canEdit}
               className="inline-flex items-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md shadow-sm text-slate-700 bg-white hover:bg-slate-50" title="自動整列"
+              title={!canEdit ? "編集権限が必要です" : "自動整列"}
             ><RefreshIcon className="w-5 h-5 mr-2" />整列</button>
           </div>
         </div>
@@ -453,9 +469,26 @@ const ProjectFlowDisplay: React.FC<ProjectFlowDisplayProps> = ({
                   <p className="flex items-start"><TargetIcon className="w-5 h-5 mr-2 text-blue-600 flex-shrink-0 mt-1" /><strong>目的:</strong>&nbsp;<span className="break-all">{projectGoal}</span></p>
                   <p className="flex items-center"><CalendarIcon className="w-5 h-5 mr-2 text-blue-600 flex-shrink-0" /><strong>目標日:</strong>&nbsp;{formattedDate}</p>
                   {currentProjectId && <p className="text-sm text-green-600">✓ Supabaseに保存済み</p>}
+                  {projectMembers.length > 1 && (
+                    <div className="flex items-center text-sm text-slate-600 mt-2">
+                      <UserIcon className="w-4 h-4 mr-1" />
+                      <span>{projectMembers.length}人のメンバー</span>
+                      <span className="mx-2">•</span>
+                      <span>あなたの役割: {userRole === 'owner' ? 'オーナー' : userRole === 'editor' ? '編集者' : '閲覧者'}</span>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
+                 {canManageMembers && currentProjectId && (
+                   <button
+                      onClick={() => setIsInviteModalOpen(true)}
+                      className="inline-flex items-center justify-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md shadow-sm text-slate-700 bg-white hover:bg-slate-50"
+                    >
+                      <UserIcon className="w-5 h-5 mr-2" />
+                      メンバー管理
+                   </button>
+                 )}
                  <button
                     onClick={() => setIsActionItemOverviewOpen(true)}
                     className="inline-flex items-center justify-center px-4 py-2 border border-slate-300 text-sm font-medium rounded-md shadow-sm text-slate-700 bg-white hover:bg-slate-50"
@@ -481,6 +514,7 @@ const ProjectFlowDisplay: React.FC<ProjectFlowDisplayProps> = ({
                  <button
                     onClick={handleGenerateHealthReport}
                     disabled={isDiagnosing}
+                    title={!canEdit ? "編集権限が必要です" : ""}
                     className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 disabled:bg-slate-400"
                   >
                     {isDiagnosing ? <LoadingSpinner size="sm" /> : <SparklesIcon className="w-5 h-5 mr-2" />}
@@ -489,6 +523,7 @@ const ProjectFlowDisplay: React.FC<ProjectFlowDisplayProps> = ({
                  <button
                     onClick={handleGenerateProjectReport}
                     disabled={isGeneratingProjectReport}
+                    title={!canEdit ? "編集権限が必要です" : ""}
                     className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-teal-600 hover:bg-teal-700 disabled:bg-slate-400"
                   >
                     {isGeneratingProjectReport ? <LoadingSpinner size="sm" /> : <PresentationChartBarIcon className="w-5 h-5 mr-2" />}
@@ -523,6 +558,7 @@ const ProjectFlowDisplay: React.FC<ProjectFlowDisplayProps> = ({
                 onStartConnection={handleStartConnection}
                 onEndConnection={handleEndConnection}
                 index={index}
+                canEdit={canEdit}
               />
             ))}
             {connectors.map(conn => (
@@ -570,6 +606,17 @@ const ProjectFlowDisplay: React.FC<ProjectFlowDisplayProps> = ({
                 onStartNewProject();
             }}
             onStartNewWithoutSaving={onStartNewProject}
+        />
+    )}
+    {isInviteModalOpen && currentProjectId && (
+        <ProjectInviteModal
+            isOpen={isInviteModalOpen}
+            onClose={() => setIsInviteModalOpen(false)}
+            projectId={currentProjectId}
+            projectTitle={projectGoal}
+            members={projectMembers}
+            userRole={userRole}
+            onMembersUpdate={onMembersUpdate}
         />
     )}
     </>

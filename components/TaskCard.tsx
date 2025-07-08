@@ -13,6 +13,7 @@ interface TaskCardProps {
   cardRef?: React.RefObject<HTMLDivElement>;
   onStartConnection: (taskId: string, event: React.MouseEvent<HTMLDivElement>) => void;
   onEndConnection: (taskId: string) => void;
+  canEdit?: boolean;
 }
 
 const getStatusStyles = (status?: TaskStatus): { icon: JSX.Element, color: string, text: string, bgColor: string } => {
@@ -40,6 +41,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
   cardRef,
   onStartConnection,
   onEndConnection,
+  canEdit = true,
 }) => {
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
   const statusRef = useRef<HTMLDivElement>(null);
@@ -57,6 +59,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
   }, [statusRef]);
 
   const handleStatusChange = (newStatus: TaskStatus) => {
+    if (!canEdit) return;
     onUpdateStatus(task.id, newStatus);
     setIsStatusDropdownOpen(false);
   };
@@ -133,10 +136,12 @@ const TaskCard: React.FC<TaskCardProps> = ({
             <button
               onClick={(e) => {
                 e.stopPropagation();
+                if (!canEdit) return;
                 onRemoveTask(task.id);
               }}
+              disabled={!canEdit}
               className="text-red-500 hover:text-red-700 transition-colors p-1 rounded-full hover:bg-red-100"
-              title="タスクを削除"
+              title={canEdit ? "タスクを削除" : "編集権限が必要です"}
               aria-label={`タスクを削除: ${task.title}`}
             >
               <TrashIcon className="w-5 h-5" />
@@ -154,13 +159,14 @@ const TaskCard: React.FC<TaskCardProps> = ({
             <div className="relative" ref={statusRef}>
               <button
                 onClick={() => setIsStatusDropdownOpen(prev => !prev)}
+                disabled={!canEdit}
                 className={`inline-flex items-center px-2 py-0.5 rounded-full cursor-pointer ${statusInfo.bgColor} ${statusInfo.color} hover:ring-2 hover:ring-offset-1 hover:ring-blue-400 transition-all`}
-                title="ステータスを変更"
+                title={canEdit ? "ステータスを変更" : "編集権限が必要です"}
               >
                 {React.cloneElement(statusInfo.icon, { className: `w-3 h-3 mr-1 ${statusInfo.color}` })}
                 {statusInfo.text}
               </button>
-              {isStatusDropdownOpen && (
+              {isStatusDropdownOpen && canEdit && (
                 <div className="absolute bottom-full mb-1 w-36 bg-white border border-slate-200 rounded-md shadow-lg z-20 py-1">
                   {Object.values(TaskStatus).map(s => (
                     <button
@@ -191,7 +197,7 @@ const TaskCard: React.FC<TaskCardProps> = ({
         }}
         className="block w-full text-left bg-slate-100 hover:bg-slate-200 text-blue-700 font-medium py-3 px-5 transition-colors text-xs border-t border-slate-200"
       >
-        詳細な計画・レポート・接続 →
+        {canEdit ? '詳細な計画・レポート・接続 →' : '詳細を表示 →'}
       </button>
     </div>
   );

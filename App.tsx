@@ -10,7 +10,9 @@ import {
   Attachment,
   GanttItem,
   Decision,
-  SlideDeck
+  SlideDeck,
+  ProjectMember,
+  ProjectWithMetadata
 } from './types';
 import { generateProjectPlan, initializeGemini } from './services/geminiService';
 import { ProjectService, ProjectData } from './services/projectService';
@@ -111,6 +113,9 @@ const App: React.FC = () => {
   const [selectedTask, setSelectedTask] = useState<ProjectTask | null>(null);
   const [ganttData, setGanttData] = useState<GanttItem[] | null>(null);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+  const [projectMembers, setProjectMembers] = useState<ProjectMember[]>([]);
+  const [userRole, setUserRole] = useState<'owner' | 'editor' | 'viewer'>('viewer');
+  const [projectVersion, setProjectVersion] = useState<number>(1);
   
   const [isLoadingPlan, setIsLoadingPlan] = useState<boolean>(false);
   const [appError, setAppError] = useState<string | null>(null);
@@ -125,13 +130,22 @@ const App: React.FC = () => {
   
   const [customReportDeck, setCustomReportDeck] = useState<SlideDeck | null>(null);
 
+  // リアルタイム更新の購読解除関数
+  const [unsubscribeRealtime, setUnsubscribeRealtime] = useState<(() => void) | null>(null);
+
   // 認証状態の監視
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
       if (!session?.user) {
         // ログアウト時の処理
+        if (unsubscribeRealtime) {
+          unsubscribeRealtime();
+          setUnsubscribeRealtime(null);
+        }
         setCurrentProjectId(null);
+        setProjectMembers([]);
+        setUserRole('viewer');
         setTasks([]);
         setProjectGoal('');
         setTargetDate('');
@@ -147,6 +161,49 @@ const App: React.FC = () => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  // プロジェクトが変更されたときのリアルタイム更新設定
+  useEffect(() => {
+    if (currentProjectId && user) {
+      // 既存の購読を解除
+      if (unsubscribeRealtime) {
+        unsubscribeRealtime();
+      }
+
+      // 新しい購読を設定
+      const unsubscribe = ProjectService.subscribeToProjectChanges(
+        currentProjectId,
+        (payload) => {
+          // プロジェクトデータの更新
+          if (payload.eventType === 'UPDATE' && payload.new) {
+            const updatedProject = payload.new;
+            setTasks(updatedProject.tasks_data || []);
+            setGanttData(updatedProject.gantt_data);
+            setProjectVersion(updatedProject.version || 1);
+            
+            // 他のユーザーによる更新の場合は通知
+            if (updatedProject.last_modified_by !== user.id) {
+              console.log('プロジェクトが他のユーザーによって更新されました');
+            }
+          }
+        },
+        (payload) => {
+          // メンバー情報の更新
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE' || payload.eventType === 'DELETE') {
+            loadProjectMembers();
+          }
+        }
+      );
+
+      setUnsubscribeRealtime(() => unsubscribe);
+    }
+
+    return () => {
+      if (unsubscribeRealtime) {
+        unsubscribeRealtime();
+      }
+    };
+  }, [currentProjectId, user]);
 
   useEffect(() => {
     const storedKey = sessionStorage.getItem('gemini-api-key');
@@ -299,12 +356,18 @@ const App: React.FC = () => {
     if (!user || !currentProjectId) return;
 
     try {
-      await ProjectService.updateProject(currentProjectId, {
+      const updatedProject = await ProjectService.updateProject(currentProjectId, {
         tasks,
         ganttData,
+        expectedVersion: projectVersion,
       });
+      setProjectVersion(updatedProject.version);
     } catch (error) {
-      console.error('プロジェクトの自動保存に失敗しました:', error);
+      if (error instanceof Error && error.message.includes('他のユーザーによって更新')) {
+        alert('プロジェクトが他のユーザーによって更新されています。ページを再読み込みして最新の状態を取得してください。');
+      } else {
+        console.error('プロジェクトの自動保存に失敗しました:', error);
+      }
     }
   };
 
@@ -316,13 +379,33 @@ const App: React.FC = () => {
     }
   }, [tasks, ganttData, currentProjectId]);
 
+  const loadProjectMembers = async () => {
+    if (!currentProjectId) return;
+    
+    try {
+      const projectWithMembers = await ProjectService.getProjectWithMembers(currentProjectId);
+      setProjectMembers(projectWithMembers.members || []);
+      setUserRole(projectWithMembers.userRole);
+      setProjectVersion(projectWithMembers.version);
+    } catch (error) {
+      console.error('メンバー情報の取得に失敗しました:', error);
+    }
+  };
+
   const handleStartNewProject = () => {
+    if (unsubscribeRealtime) {
+      unsubscribeRealtime();
+      setUnsubscribeRealtime(null);
+    }
     setProjectGoal('');
     setTargetDate('');
     setTasks([]);
     setGanttData(null);
     setCustomReportDeck(null);
     setCurrentProjectId(null);
+    setProjectMembers([]);
+    setUserRole('viewer');
+    setProjectVersion(1);
     setCurrentView(ViewState.INPUT_FORM);
     setAppError(null);
     setHistory([]);
@@ -347,6 +430,8 @@ const App: React.FC = () => {
         setGanttData(content.ganttData || null);
         setCustomReportDeck(null);
         setCurrentProjectId(null); // JSONインポートは新規プロジェクト扱い
+        setProjectMembers([]);
+        setUserRole('viewer');
         setCurrentView(ViewState.PROJECT_FLOW);
         setHistory([]);
         setRedoHistory([]);
@@ -369,11 +454,16 @@ const App: React.FC = () => {
     })));
     setGanttData(project.ganttData || null);
     setCurrentProjectId(project.id);
+    setUserRole(project.userRole);
+    setProjectVersion(project.version);
     setCustomReportDeck(null);
     setCurrentView(ViewState.PROJECT_FLOW);
     setHistory([]);
     setRedoHistory([]);
     setIsProjectListOpen(false);
+    
+    // メンバー情報を読み込み
+    loadProjectMembers();
   };
 
   const handleCreateNewProject = () => {
@@ -382,6 +472,11 @@ const App: React.FC = () => {
   };
   
   const handleAddTaskFromModal = ({ title, description }: { title: string; description: string }) => {
+    if (userRole === 'viewer') {
+      alert('編集権限が必要です');
+      return;
+    }
+    
     const newTask: ProjectTask = {
       id: generateUniqueId('task'),
       title,
@@ -395,6 +490,11 @@ const App: React.FC = () => {
   };
 
   const handleRemoveTask = (taskId: string) => {
+    if (userRole === 'viewer') {
+      alert('編集権限が必要です');
+      return;
+    }
+    
     setTasksWithHistory(prevTasks => prevTasks
         .filter(t => t.id !== taskId)
         .map(t => ({...t, nextTaskIds: (t.nextTaskIds || []).filter(id => id !== taskId)}))
@@ -402,26 +502,51 @@ const App: React.FC = () => {
   };
 
   const handleUpdateTaskStatus = (taskId: string, status: TaskStatus) => {
+    if (userRole === 'viewer') {
+      alert('編集権限が必要です');
+      return;
+    }
+    
     setTasksWithHistory(prevTasks =>
         prevTasks.map(t => t.id === taskId ? { ...t, status } : t)
     );
   };
   
   const handleUpdateTaskConnections = (sourceTaskId: string, nextTaskIds: string[]) => {
+      if (userRole === 'viewer') {
+        alert('編集権限が必要です');
+        return;
+      }
+      
       setTasksWithHistory(prev => prev.map(t => t.id === sourceTaskId ? {...t, nextTaskIds} : t));
   };
   
   const handleUpdateTaskPosition = (taskId: string, position: { x: number; y: number }) => {
+    if (userRole === 'viewer') {
+      alert('編集権限が必要です');
+      return;
+    }
+    
     setTasks(prevTasks =>
       prevTasks.map(t => (t.id === taskId ? { ...t, position } : t))
     );
   };
 
   const handleUpdateTaskCoreInfo = (taskId: string, updates: { title: string; description: string; status: TaskStatus }) => {
+    if (userRole === 'viewer') {
+      alert('編集権限が必要です');
+      return;
+    }
+    
     setTasksWithHistory(prevTasks => prevTasks.map(t => t.id === taskId ? { ...t, ...updates } : t));
   };
   
   const handleUpdateTaskExtendedDetails = (taskId: string, details: EditableExtendedTaskDetails) => {
+      if (userRole === 'viewer') {
+        alert('編集権限が必要です');
+        return;
+      }
+      
       setTasksWithHistory(prevTasks =>
           prevTasks.map(t => (t.id === taskId ? { ...t, extendedDetails: details } : t))
       );
@@ -442,6 +567,8 @@ const App: React.FC = () => {
     setGanttData(null);
     setCustomReportDeck(null);
     setCurrentProjectId(null); // テンプレートは新規プロジェクト扱い
+    setProjectMembers([]);
+    setUserRole('viewer');
     setCurrentView(ViewState.PROJECT_FLOW);
     setHistory([]);
     setRedoHistory([]);
@@ -460,6 +587,8 @@ const App: React.FC = () => {
       setGanttData(null);
       setCustomReportDeck(null);
       setCurrentProjectId(null); // AI生成は新規プロジェクト扱い
+     setProjectMembers([]);
+     setUserRole('viewer');
       setCurrentView(ViewState.PROJECT_FLOW);
       setHistory([]);
       setRedoHistory([]);
@@ -474,6 +603,9 @@ const App: React.FC = () => {
             layoutedTasks
           );
           setCurrentProjectId(project.id);
+          setUserRole('owner');
+          setProjectVersion(1);
+          loadProjectMembers();
         } catch (error) {
           console.error('プロジェクトの自動保存に失敗しました:', error);
         }
@@ -555,6 +687,9 @@ const App: React.FC = () => {
             onLogout={handleLogout}
             currentProjectId={currentProjectId}
             onSaveProject={saveCurrentProject}
+            projectMembers={projectMembers}
+            userRole={userRole}
+            onMembersUpdate={loadProjectMembers}
           />
         );
       case ViewState.TASK_DETAIL:
@@ -567,6 +702,7 @@ const App: React.FC = () => {
               generateUniqueId={generateUniqueId}
               projectGoal={projectGoal}
               targetDate={targetDate}
+              canEdit={userRole !== 'viewer'}
             />
         );
       case ViewState.INPUT_FORM:
