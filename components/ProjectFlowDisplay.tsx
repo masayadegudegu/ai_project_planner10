@@ -87,8 +87,6 @@ const ProjectFlowDisplay: React.FC<ProjectFlowDisplayProps> = ({
   userRole = 'viewer',
   onMembersUpdate = () => {},
 }) => {
-  // コンポーネント本体
-};
 
   const singleTaskFileInputRef = useRef<HTMLInputElement>(null);
   const flowContainerRef = useRef<HTMLDivElement>(null);
