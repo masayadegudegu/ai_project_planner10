@@ -56,19 +56,40 @@ interface ConnectorInfo {
 }
 
 const ProjectFlowDisplay: React.FC<ProjectFlowDisplayProps> = ({ 
-  tasks, projectGoal, targetDate, onSelectTask, onUpdateTaskExtendedDetails, onUpdateTaskPosition, 
-  onUpdateTaskStatus, onStartNewProject, onExportProject, onAddTask, onRemoveTask, onImportSingleTask, 
-  onAutoLayout, onUndo, canUndo, onRedo, canRedo,
-  generateUniqueId, onUpdateTaskConnections,
-  ganttData, setGanttData, onCustomReportGenerated, onClearApiKey,
-  onOpenProjectList, onLogout, currentProjectId, onSaveProject
-  projectMembers = [],
-  userRole = 'viewer',
-  onMembersUpdate = () => {},
+  tasks,
+  projectGoal,
+  targetDate,
+  onSelectTask,
+  onUpdateTaskExtendedDetails,
+  onUpdateTaskPosition,
+  onUpdateTaskStatus,
+  onStartNewProject,
+  onExportProject,
+  onAddTask,
+  onRemoveTask,
+  onImportSingleTask,
+  onAutoLayout,
+  onUndo,
+  canUndo,
+  onRedo,
+  canRedo,
+  generateUniqueId,
+  onUpdateTaskConnections,
+  ganttData,
+  setGanttData,
+  onCustomReportGenerated,
+  onClearApiKey,
+  onOpenProjectList,
+  onLogout,
+  currentProjectId,
+  onSaveProject,  // ← ここにカンマを追加！
   projectMembers = [],
   userRole = 'viewer',
   onMembersUpdate = () => {},
 }) => {
+  // コンポーネント本体
+};
+
   const singleTaskFileInputRef = useRef<HTMLInputElement>(null);
   const flowContainerRef = useRef<HTMLDivElement>(null);
   const [taskCardRefs, setTaskCardRefs] = useState<Map<string, React.RefObject<HTMLDivElement>>>(new Map());
