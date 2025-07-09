@@ -7,29 +7,39 @@
   <title>AI Project Planner</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
     /* Custom scrollbar for better aesthetics */
+    
     ::-webkit-scrollbar {
       width: 8px;
       height: 8px;
     }
+    
     ::-webkit-scrollbar-track {
       background: #f1f1f1;
       border-radius: 10px;
     }
+    
     ::-webkit-scrollbar-thumb {
       background: #888;
       border-radius: 10px;
     }
+    
     ::-webkit-scrollbar-thumb:hover {
       background: #555;
     }
+    
     /* Ensure body takes full height */
+    
     html, body, #root {
         height: 100%;
         margin: 0;
         font-family: 'Inter', sans-serif; /* A nice default sans-serif font */
     }
+    
     /* For ProjectFlowDisplay layout lines */
+    
     .flow-display-container > svg {
         position: absolute;
         top: 0;
@@ -39,6 +49,7 @@
         pointer-events: none; /* Make sure SVG doesn't block interactions with cards */
         z-index: 0; /* Behind cards */
     }
+    
     .task-card-in-flow {
         z-index: 1; /* Above lines */
     }
@@ -58,7 +69,7 @@
   }
 }
 </script>
-  <script type="module" crossorigin src="/assets/index-TAx3tQmd.js"></script>
+  <script type="module" crossorigin src="/assets/index-C_oWCN-T.js"></script>
 </head>
 <body class="bg-slate-100">
   <div id="root" class="h-full"></div>
