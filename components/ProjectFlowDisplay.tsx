@@ -645,6 +645,6 @@ const ProjectFlowDisplay: React.FC<ProjectFlowDisplayProps> = ({
     )}
     </>
   );
-};
+
 
 export default ProjectFlowDisplay;
