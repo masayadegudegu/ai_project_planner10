@@ -65,6 +65,9 @@ const ProjectFlowDisplay: React.FC<ProjectFlowDisplayProps> = ({
   projectMembers = [],
   userRole = 'viewer',
   onMembersUpdate = () => {},
+  projectMembers = [],
+  userRole = 'viewer',
+  onMembersUpdate = () => {},
 }) => {
   const singleTaskFileInputRef = useRef<HTMLInputElement>(null);
   const flowContainerRef = useRef<HTMLDivElement>(null);

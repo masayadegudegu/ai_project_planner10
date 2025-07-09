@@ -23,6 +23,8 @@ export type Database = {
           gantt_data: any;
           created_at: string;
           updated_at: string;
+          last_modified_by: string;
+          version: number;
         };
         Insert: {
           id?: string;
@@ -34,6 +36,8 @@ export type Database = {
           gantt_data?: any;
           created_at?: string;
           updated_at?: string;
+          last_modified_by?: string;
+          version?: number;
         };
         Update: {
           id?: string;
@@ -45,6 +49,78 @@ export type Database = {
           gantt_data?: any;
           created_at?: string;
           updated_at?: string;
+          last_modified_by?: string;
+          version?: number;
+        };
+      };
+      project_members: {
+        Row: {
+          id: string;
+          project_id: string;
+          user_id: string;
+          role: 'owner' | 'editor' | 'viewer';
+          invited_by: string;
+          invited_at: string;
+          joined_at: string;
+          status: 'pending' | 'accepted' | 'declined';
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          user_id: string;
+          role: 'owner' | 'editor' | 'viewer';
+          invited_by?: string;
+          invited_at?: string;
+          joined_at?: string;
+          status?: 'pending' | 'accepted' | 'declined';
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          user_id?: string;
+          role?: 'owner' | 'editor' | 'viewer';
+          invited_by?: string;
+          invited_at?: string;
+          joined_at?: string;
+          status?: 'pending' | 'accepted' | 'declined';
+          created_at?: string;
+        };
+      };
+      project_invitations: {
+        Row: {
+          id: string;
+          project_id: string;
+          email: string;
+          role: 'editor' | 'viewer';
+          invited_by: string;
+          token: string;
+          expires_at: string;
+          created_at: string;
+          used_at: string;
+        };
+        Insert: {
+          id?: string;
+          project_id: string;
+          email: string;
+          role: 'editor' | 'viewer';
+          invited_by: string;
+          token?: string;
+          expires_at?: string;
+          created_at?: string;
+          used_at?: string;
+        };
+        Update: {
+          id?: string;
+          project_id?: string;
+          email?: string;
+          role?: 'editor' | 'viewer';
+          invited_by?: string;
+          token?: string;
+          expires_at?: string;
+          created_at?: string;
+          used_at?: string;
         };
       };
     };
