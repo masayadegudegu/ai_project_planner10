@@ -61,7 +61,7 @@ const ProjectFlowDisplay: React.FC<ProjectFlowDisplayProps> = ({
   onAutoLayout, onUndo, canUndo, onRedo, canRedo,
   generateUniqueId, onUpdateTaskConnections,
   ganttData, setGanttData, onCustomReportGenerated, onClearApiKey,
-  onOpenProjectList, onLogout, currentProjectId, onSaveProject
+  onOpenProjectList, onLogout, currentProjectId, onSaveProject,
   projectMembers = [],
   userRole = 'viewer',
   onMembersUpdate = () => {},
